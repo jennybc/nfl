@@ -101,10 +101,40 @@ dlply(dsetFacts, ~ position, function(x) sort(x$nvar))
 
 ## YES! within position, the number of variables is now constant
 
-## but do they reall have the same names?
+## but do they really have the same names?
+jPosition <- levels(dsetFacts$position)
 
-## WHEN I RETURN:
-## ANALYZE VARIABLE NAMES WITHIN POSITION
-## IF LOOKS REASONABLE, MERGE DATASETS WITHIN POSITION
+## visual inspection of this:
+lapply(jPosition, function(x) {
+  y <- allRaw[dsetFacts$position == x]
+  foo <- llply(y, names)
+  foo <- data.frame(ID = rep(names(foo), sapply(foo, length)),
+                    varName = unlist(foo))
+  rownames(foo) <- NULL
+  with(foo, table(varName, ID))  
+})
+## tells me our only trouble is with WR
+## retained bits that show the problem:
+#           ID
+# varName    2010_WR 2011_WR 2012_WR
+# KR.Lng         1       0       0
+# KR.Long        0       1       1
+# Lng            0       1       1
+# Rec.Lng        1       0       0
+
+allRaw[["2010_WR"]] <- rename(allRaw[["2010_WR"]], c(KR.Lng = "KR.Long"))
+allRaw[["2010_WR"]] <- rename(allRaw[["2010_WR"]], c(Rec.Lng = "Lng"))
+
+## REPEAT visual inspection of this:
+lapply(jPosition, function(x) {
+  y <- allRaw[dsetFacts$position == x]
+  foo <- llply(y, names)
+  foo <- data.frame(ID = rep(names(foo), sapply(foo, length)),
+                    varName = unlist(foo))
+  rownames(foo) <- NULL
+  with(foo, table(varName, ID))  
+})
+
+## READY TO MERGE THE DATASETS AT EACH POSITION
 
 ## WRITE POSITION-SPECIFIC MULTI-YEAR DATASETS
