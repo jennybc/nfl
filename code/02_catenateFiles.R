@@ -112,6 +112,24 @@ sapply(jPosition, function(x) {
   foo[!varStatus, ]
 })
 
-## READY TO MERGE THE DATASETS AT EACH POSITION
+## catenate the datasets for each position
+posData <- sapply(jPosition, function(x) {
+  y <- allRaw[dsetFacts$position == x]
+  z <- do.call("rbind", y) 
+  z$year <- rep(dsetFacts$year[dsetFacts$position == x], sapply(y, nrow))
+  z
+})
+str(posData, max.level = 1)
 
-## WRITE POSITION-SPECIFIC MULTI-YEAR DATASETS
+## quick sanity check that these datasets have the expected number of
+## observations
+ddply(dsetFacts, ~ position, summarize, nobs = sum(nobs))
+sapply(posData, nrow)
+## looks good to me
+
+## write datasets to file
+l_ply(names(posData), function(x) {
+  df <- posData[[x]]
+  write.table(df, paste0("data/", x, ".txt"),
+              quote = FALSE, sep = "\t", row.names = FALSE)
+})
