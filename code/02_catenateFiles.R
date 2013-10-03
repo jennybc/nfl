@@ -1,10 +1,10 @@
 ## bring the individual datasets into one big file
-## NOTE FROM THE FUTURE: probably not going to happen
+## NOTE FROM THE FUTURE: that's not going to happen
 ## compromise: merge the year-specific datsets into one dataset per position
 
 library(plyr)
 
-(jFiles <- list.files("data", "^201[0-9]_[A-Z]+.csv", full.names = TRUE))
+(jFiles <- list.files("data/asDownloaded", "^201[0-9]_[A-Z]+.csv", full.names = TRUE))
 
 if(length(jFiles) != 21) 
   stop("expecting 21 raw data files!\ncheck what's gone wrong!")
@@ -18,7 +18,7 @@ allRaw <- lapply(jFiles,
                  function(aFile)
                    read.table(aFile, header = TRUE, sep = ",",
                               fileEncoding="latin1", quote = "\""))
-names(allRaw) <- gsub(".csv", "", gsub("data/", "", jFiles))
+names(allRaw) <- gsub(".csv", "", gsub("data/asDownloaded/", "", jFiles))
 str(allRaw, max.level = 1)
 ## OMG they all have different numbers of variables
 
@@ -35,7 +35,7 @@ getDsetFacts <- function(z) {
 dsetFacts <- getDsetFacts(allRaw)
 dsetFacts
 
-## is the number of variables at least constant within a position?
+## is the number of variables constant within a position?
 dlply(dsetFacts, ~ position, function(x) x$nvar)
 ## no, of course not, that would be too easy
 ## good ones: DEF = 13, QB = 21, ST = 8
@@ -48,26 +48,37 @@ newOrder <- with(dsetFacts, order(position, year))
 dsetFacts <- dsetFacts[newOrder, ]
 allRaw <- allRaw[dsetFacts$ID]
 
-llply(allRaw, names)
+jPosition <- levels(dsetFacts$position)
 
-## visual inspection of the tricky ones
+## find variables not present across all years
+sapply(jPosition, function(x) {
+  y <- allRaw[dsetFacts$position == x]
+  foo <- llply(y, names)
+  foo <- data.frame(ID = rep(names(foo), sapply(foo, length)),
+                    varName = unlist(foo), row.names = NULL)
+  foo <- with(foo, table(varName, ID))  
+  varStatus <- apply(foo, 1, function(z) all(z == 1))
+  foo[!varStatus, ]
+})
+
+## Dealing with variables that are NOT uniformly present or consistently named
 
 ## K = 26, 21, 21
-## in 2010, we have field goals in 5 different length classes missed? made? attempted?
-## in 2011 and 2012, we have only made and attempted?
-## that explains the extra 5 variables in 2010
-
-## RB = 19, 18, 19 and TE = 19, 18, 19 and WR = 24, 23, 24
-## 2010 has Rec.Tgt
-## 2011 had nothing
-## 2012 has Targets
-
-## fix individual datasets to facilitate merging
+## there are 5 variables that only appear in the 2010 dataset
+## I believe they refer to field goals missed in 5 different length categories
+## this can always be inferred from attempts - fg made
+## they were not deemed necessary in 2011 and 2012 so BYE BYE
 
 ## in 2010_K, drop variables that start with X[0-9], should be 5 of them
 allRaw[["2010_K"]] <- 
   subset(allRaw[["2010_K"]],
          select = !grepl("^X[0-9]", names(allRaw[["2010_K"]])))
+
+## RB = 19, 18, 19 and TE = 19, 18, 19 and WR = 24, 23, 24
+## this is a combined problem of inconsistent names and non-existence
+## 2010 has Rec.Tgt
+## 2011 has nothing
+## 2012 has Targets
 
 ## in 2010_RB, 2010_TE, 2010_WR, rename Rec.Tgt to Targets
 jFun <- function(x) rename(x, c(Rec.Tgt = "Targets"))
@@ -84,44 +95,21 @@ allRaw[["2011_RB"]] <- jFun(allRaw[["2011_RB"]])
 allRaw[["2011_TE"]] <- jFun(allRaw[["2011_TE"]])
 allRaw[["2011_WR"]] <- jFun(allRaw[["2011_WR"]])
 
-## let's count the variables again ...
-dsetFacts <- getDsetFacts(allRaw)
-dsetFacts
-dlply(dsetFacts, ~ position, function(x) sort(x$nvar))
-## YES! within position, the number of variables is now constant
-
-## but do they really have the same names?
-jPosition <- levels(dsetFacts$position)
-
-## visual inspection of this:
-lapply(jPosition, function(x) {
-  y <- allRaw[dsetFacts$position == x]
-  foo <- llply(y, names)
-  foo <- data.frame(ID = rep(names(foo), sapply(foo, length)),
-                    varName = unlist(foo))
-  rownames(foo) <- NULL
-  with(foo, table(varName, ID))  
-})
-## our only troublesome position is WR
-## retained bits that show the problems:
-#           ID
-# varName    2010_WR 2011_WR 2012_WR
-# KR.Lng         1       0       0
-# KR.Long        0       1       1
-# Lng            0       1       1
-# Rec.Lng        1       0       0
-
+## last fixes for WR
+## these are inconsistent naming problems
+## bringing 2010 into agreement with 2011 and 2012
 allRaw[["2010_WR"]] <- rename(allRaw[["2010_WR"]], c(KR.Lng = "KR.Long"))
 allRaw[["2010_WR"]] <- rename(allRaw[["2010_WR"]], c(Rec.Lng = "Lng"))
 
-## REPEAT visual inspection of this:
-lapply(jPosition, function(x) {
+## re-check that the variables are the same within position across the years
+sapply(jPosition, function(x) {
   y <- allRaw[dsetFacts$position == x]
   foo <- llply(y, names)
   foo <- data.frame(ID = rep(names(foo), sapply(foo, length)),
-                    varName = unlist(foo))
-  rownames(foo) <- NULL
-  with(foo, table(varName, ID))  
+                    varName = unlist(foo), row.names = NULL)
+  foo <- with(foo, table(varName, ID))  
+  varStatus <- apply(foo, 1, function(z) all(z == 1))
+  foo[!varStatus, ]
 })
 
 ## READY TO MERGE THE DATASETS AT EACH POSITION
