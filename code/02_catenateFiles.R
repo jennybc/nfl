@@ -132,4 +132,6 @@ l_ply(names(posData), function(x) {
   df <- posData[[x]]
   write.table(df, paste0("data/", x, ".txt"),
               quote = FALSE, sep = "\t", row.names = FALSE)
+  write.table(df, paste0("data/", x, ".csv"),
+              quote = FALSE, sep = ",", row.names = FALSE)
 })
