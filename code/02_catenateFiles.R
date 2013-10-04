@@ -44,6 +44,7 @@ dlply(dsetFacts, ~ position, function(x) x$nvar)
 ## which variables appear, by position?
 
 ## first, rearrange dsetFacts and allRaw by position, then year
+## just makes informal visual inspection more informative
 newOrder <- with(dsetFacts, order(position, year))
 dsetFacts <- dsetFacts[newOrder, ]
 allRaw <- allRaw[dsetFacts$ID]
@@ -111,6 +112,7 @@ sapply(jPosition, function(x) {
   varStatus <- apply(foo, 1, function(z) all(z == 1))
   foo[!varStatus, ]
 })
+## there are no problems left (of this sort)
 
 ## catenate the datasets for each position
 posData <- sapply(jPosition, function(x) {
@@ -130,7 +132,7 @@ sapply(posData, nrow)
 ## write datasets to file
 l_ply(names(posData), function(x) {
   df <- posData[[x]]
-  write.table(df, paste0("data/", x, ".txt"),
+  write.table(df, paste0("data/", x, ".tsv"),
               quote = FALSE, sep = "\t", row.names = FALSE)
   write.table(df, paste0("data/", x, ".csv"),
               quote = FALSE, sep = ",", row.names = FALSE)
